@@ -18,6 +18,9 @@ MAGENTA = "\033[35m"
 CYAN = "\033[36m"
 WHITE = "\033[37m"
 
+# NOTE: Always use width = width + 1 when referencing width
+# due to the addition of '\n' character
+
 
 def init_arena(height, width):
     screen = []
@@ -33,10 +36,10 @@ def init_arena(height, width):
 
         screen.append("\n")
     # initialize snake and snack
-    snake = Snake()
+    snake = Snake(width, height)
     snack = Snack(snake, width, height)
     draw_snake_in_arena(screen, snake, width)
-    draw_random_snack(screen, width, snake)
+    draw_random_snack(screen, width, snack)
     return screen, snake, snack
 
 
@@ -48,13 +51,13 @@ class Snack:
     def randomize_pos(self, snake, width, height):
         rand_x, rand_y = snake.posx, snake.posy
         while rand_x == snake.posx or rand_y == snake.posy:
-            rand_x = random.randint(0, width - 1)
-            rand_y = random.randint(0, height - 1)
+            rand_x = random.randint(1, width - 1)
+            rand_y = random.randint(1, height - 1)
         self.posx, self.posy = rand_x, rand_y
 
 
 def update_arena(screen, snake, snack):
-    index = snake.posy * width + snake.posx
+    index = get_index(width, snake)
     # only spawn snack if not taken
     if screen[index] == "$":
         snack.randomize_pos(snake, width, height)
@@ -62,22 +65,26 @@ def update_arena(screen, snake, snack):
     draw_snake_in_arena(screen, snake, width)
 
 
+def get_index(width, obj):
+    return obj.posy * width + 1 + obj.posx
+
+
 def draw_snake_in_arena(screen, snake, width):
-    index = snake.posy * width + snake.posx
+    index = get_index(width, snake)
     screen[index] = BLUE + "@"
     for i in range(1, 4):
         screen[index - i] = GREEN + "O"
 
 
 def draw_random_snack(screen, width, snack):
-    index = snack.posy * width + snack.posx
+    index = get_index(width, snack)
     screen[index] = GREEN + "$"
 
 
 class Snake:
-    def __init__(self, posx=18, posy=4):
-        self.posx = posx
-        self.posy = posy
+    def __init__(self, posx, posy):
+        self.posx = posx - 2
+        self.posy = posy - 2
 
     def move(self, x, y):
         self.posx += x
@@ -90,7 +97,6 @@ if __name__ == "__main__":
     width, height = size.columns // 2, size.lines // 2
 
     escape_keys = ["q", "\x1b", "\x03"]
-    snake = Snake()
     arena, snake, snack = init_arena(height, width)
     # draw starting position
     sys.stdout.write("".join(arena))
@@ -121,7 +127,14 @@ if __name__ == "__main__":
                 continue
 
         # check if snake within arena
-        if snake.posx > width or snake.posy > height:
+        if (
+            snake.posx >= width - 1
+            or snake.posx <= 0
+            or snake.posy >= height - 1
+            or snake.posy <= 0
+        ):
             break
         update_arena(arena, snake, snack)
+        # clear arena
+        sys.stdout.write("\033[2J\033[H")
         sys.stdout.write("".join(arena))
