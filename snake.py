@@ -18,6 +18,11 @@ MAGENTA = "\033[35m"
 CYAN = "\033[36m"
 WHITE = "\033[37m"
 
+# Game objects
+HEAD = BLUE + "@"
+BODY = GREEN + "O"
+SNACK = GREEN + "$"
+
 # NOTE: Always use width = width + 1 when referencing width
 # due to the addition of '\n' character
 
@@ -71,24 +76,55 @@ def get_index(width, obj):
 
 def draw_snake_in_arena(screen, snake, width):
     index = get_index(width, snake)
-    screen[index] = BLUE + "@"
+    screen[index] = HEAD
     for i in range(1, 4):
-        screen[index - i] = GREEN + "O"
+        screen[index - i] = BODY
 
 
 def draw_random_snack(screen, width, snack):
     index = get_index(width, snack)
-    screen[index] = GREEN + "$"
+    screen[index] = SNACK
 
 
 class Snake:
     def __init__(self, posx, posy):
         self.posx = posx - 2
         self.posy = posy - 2
+        self.direction_x = 0
+        self.direction_y = 0
 
     def move(self, x, y):
-        self.posx += x
-        self.posy += y
+        self.direction_x = x
+        self.direction_y = y
+
+    def update(self, arena, width):
+        # block update if it will collide with snake body
+        ch = arena[get_index(width, self)]
+        if ch != BODY:
+            self.posx += self.direction_x
+            self.posy += self.direction_y
+
+
+# non blocking input
+def get_key_input():
+    if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+        return sys.stdin.read(1)
+    return None
+
+
+def setup_terminal():
+    """Configure terminal for game input (no echo, raw mode)"""
+    old_settings = termios.tcgetattr(sys.stdin)
+    # Disable echo and canonical mode
+    new_settings = old_settings[:]
+    new_settings[3] &= ~(termios.ECHO | termios.ICANON)
+    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, new_settings)
+    return old_settings
+
+
+def restore_terminal(old_settings):
+    """Restore original terminal settings"""
+    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
 
 if __name__ == "__main__":
@@ -98,19 +134,14 @@ if __name__ == "__main__":
 
     escape_keys = ["q", "\x1b", "\x03"]
     arena, snake, snack = init_arena(height, width)
+    old_settings = setup_terminal()
+    sys.stdout.write("\033[2J\033[H")
     # draw starting position
     sys.stdout.write("".join(arena))
     # game loop
     while True:
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
-        try:
-            tty.setraw(sys.stdin.fileno())
-            ch = sys.stdin.read(1)
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-
-        lower_ch = ch.lower()
+        ch = get_key_input()
+        lower_ch = ch.lower() if ch is not None else ""
 
         match lower_ch:
             case lower_ch if lower_ch in escape_keys:
@@ -123,8 +154,8 @@ if __name__ == "__main__":
                 snake.move(-1, 0)
             case "d":
                 snake.move(1, 0)
-            case _:
-                continue
+        # update snakes movement
+        snake.update(arena, width)
 
         # check if snake within arena
         if (
@@ -138,3 +169,5 @@ if __name__ == "__main__":
         # clear arena
         sys.stdout.write("\033[2J\033[H")
         sys.stdout.write("".join(arena))
+        time.sleep(0.15)
+    restore_terminal(old_settings)
