@@ -17,14 +17,12 @@ BLUE = "\033[34m"
 MAGENTA = "\033[35m"
 CYAN = "\033[36m"
 WHITE = "\033[37m"
+CLEAR = "\033[2J\033[H"
 
 # Game objects
 HEAD = BLUE + "@"
 BODY = GREEN + "O"
 SNACK = GREEN + "$"
-
-# NOTE: Always use width = width + 1 when referencing width
-# due to the addition of '\n' character
 
 
 def init_arena(height, width):
@@ -70,6 +68,8 @@ def update_arena(screen, snake, snack):
     draw_snake_in_arena(screen, snake, width)
 
 
+# NOTE: Always use width = width + 1 when referencing width
+# due to the addition of '\n' character
 def get_index(width, obj):
     return obj.posy * width + 1 + obj.posx
 
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     escape_keys = ["q", "\x1b", "\x03"]
     arena, snake, snack = init_arena(height, width)
     old_settings = setup_terminal()
-    sys.stdout.write("\033[2J\033[H")
+    sys.stdout.write(CLEAR)
     # draw starting position
     sys.stdout.write("".join(arena))
     # game loop
@@ -167,7 +167,7 @@ if __name__ == "__main__":
             break
         update_arena(arena, snake, snack)
         # clear arena
-        sys.stdout.write("\033[2J\033[H")
+        sys.stdout.write(CLEAR)
         sys.stdout.write("".join(arena))
         time.sleep(0.15)
     restore_terminal(old_settings)
